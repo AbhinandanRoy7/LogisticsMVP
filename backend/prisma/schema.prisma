@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum ShipmentStatus {
+  CREATED
+  PICKED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String
+  role          Role      @default(USER)
+  is_verified   Boolean   @default(false)
+  created_at    DateTime  @default(now())
+  
+  otp_codes     OtpCode[]
+  shipments     Shipment[] @relation("CreatedShipments")
+  logs          ShipmentStatusLog[]
+  
+  @@map("users")
+}
+
+model OtpCode {
+  id         String   @id @default(uuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id])
+  otp        String
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  @@map("otp_codes")
+}
+
+model Shipment {
+  id          String         @id @default(uuid())
+  origin      String
+  destination String
+  status      ShipmentStatus @default(CREATED)
+  price       Float          @default(0)
+  created_by  String
+  creator     User           @relation("CreatedShipments", fields: [created_by], references: [id])
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+  
+  logs        ShipmentStatusLog[]
+
+  @@map("shipments")
+}
+
+model ShipmentStatusLog {
+  id          String   @id @default(uuid())
+  shipment_id String
+  shipment    Shipment @relation(fields: [shipment_id], references: [id])
+  old_status  String? 
+  new_status  String
+  updated_by  String
+  updater     User     @relation(fields: [updated_by], references: [id])
+  updated_at  DateTime @default(now())
+
+  @@map("shipment_status_logs")
+}
